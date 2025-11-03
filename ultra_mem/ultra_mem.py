@@ -124,11 +124,12 @@ class UltraMem(Module):
         # handle value expansion
 
         assert divisible_by(num_memories, value_expansion)
+        num_virtual_mems = num_memories // value_expansion
 
         self.value_expansion = value_expansion
         self.value_expansion_proj = Parameter(randn(value_expansion, dim_values, dim_values) * 1e-2)
 
-        batch_randperm = randn(num_memories // value_expansion, value_expansion).argsort(dim = -1)
+        batch_randperm = randn(num_virtual_mems, value_expansion).argsort(dim = -1)
         self.register_buffer('rand_proj_mapping', batch_randperm.flatten().long())
 
         # score activation - defaults to ReLU proposed by Csordas
@@ -142,7 +143,9 @@ class UltraMem(Module):
         if exists(layers_for_mem_init):
             mem_init_var = value_expansion / (2 * topk * core_heads * layers_for_mem_init)
 
-        self.memories = Parameter(randn(core_heads, num_memories // value_expansion, dim_values) * sqrt(mem_init_var))
+        self.num_virtual_mems = num_virtual_mems
+
+        self.memories = Parameter(randn(core_heads, num_virtual_mems, dim_values) * sqrt(mem_init_var))
 
         self.register_buffer('head_arange', arange(core_heads), persistent = False)
 
@@ -272,7 +275,7 @@ class UltraMem(Module):
         # sparse finetuning
 
         if exists(trainable_sparse_mask):
-            assert len(trainable_sparse_mask) == self.num_memories
+            assert len(trainable_sparse_mask) == self.num_virtual_mems
 
             grad_mask = trainable_sparse_mask[final_indices]
 
