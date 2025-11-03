@@ -124,11 +124,12 @@ class UltraMem(Module):
         # handle value expansion
 
         assert divisible_by(num_memories, value_expansion)
+        num_virtual_mems = num_memories // value_expansion
 
         self.value_expansion = value_expansion
         self.value_expansion_proj = Parameter(randn(value_expansion, dim_values, dim_values) * 1e-2)
 
-        batch_randperm = randn(num_memories // value_expansion, value_expansion).argsort(dim = -1)
+        batch_randperm = randn(num_virtual_mems, value_expansion).argsort(dim = -1)
         self.register_buffer('rand_proj_mapping', batch_randperm.flatten().long())
 
         # score activation - defaults to ReLU proposed by Csordas
@@ -142,7 +143,9 @@ class UltraMem(Module):
         if exists(layers_for_mem_init):
             mem_init_var = value_expansion / (2 * topk * core_heads * layers_for_mem_init)
 
-        self.memories = Parameter(randn(core_heads, num_memories // value_expansion, dim_values) * sqrt(mem_init_var))
+        self.num_virtual_mems = num_virtual_mems
+
+        self.memories = Parameter(randn(core_heads, num_virtual_mems, dim_values) * sqrt(mem_init_var))
 
         self.register_buffer('head_arange', arange(core_heads), persistent = False)
 
@@ -272,11 +275,15 @@ class UltraMem(Module):
         # sparse finetuning
 
         if exists(trainable_sparse_mask):
-            assert len(trainable_sparse_mask) == self.num_memories
+            if trainable_sparse_mask.ndim == 1:
+                trainable_sparse_mask = rearrange(trainable_sparse_mask, 'm -> 1 m')
 
-            grad_mask = trainable_sparse_mask[final_indices]
+            assert trainable_sparse_mask.shape == (self.heads, self.num_virtual_mems)
 
-            masked_memories = grad_mask * memories
+            head_arange = align_dims_to(self.head_arange, memory_indices)
+            grad_mask = trainable_sparse_mask[head_arange, memory_indices]
+
+            masked_memories = multiply('..., ... d', grad_mask, memories)
             memories = memories.detach() + masked_memories - masked_memories.detach()
 
         # multiply by the scores and aggregate
