@@ -316,4 +316,4 @@ class UltraMem(Module):
 
         # returning
 
-        return out, aux_loss
+        return out, memory_indices, aux_loss

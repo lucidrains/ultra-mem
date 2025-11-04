@@ -16,11 +16,15 @@ $ pip install ultra-mem
 import torch
 from ultra_mem import UltraMem
 
-ultra_mem = UltraMem(dim = 512)
+ultra_mem = UltraMem(
+    dim = 512,
+    core_heads = 2,
+    topk = 32,
+)
 
 tokens = torch.randn(1, 1024, 512)
 
-out, aux_loss = ultra_mem(tokens) # (1, 1024, 512), ()
+out, mem_indices, aux_loss = ultra_mem(tokens) # (1, 1024, 512), (2, 1, 1024, 32), ()
 ```
 
 ## Char-level LM

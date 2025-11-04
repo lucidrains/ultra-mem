@@ -149,7 +149,7 @@ class Transformer(Module):
 
         x = self.pre_decoder(x)
 
-        mem_out, aux_loss = self.ultra_mem(x)
+        mem_out, mem_indices, aux_loss = self.ultra_mem(x)
         x = self.mid_decoder(x)
         x = x + mem_out
 

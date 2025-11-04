@@ -18,8 +18,6 @@ def test_ultra_mem(
 ):
     from ultra_mem.ultra_mem import UltraMem
 
-    x = torch.randn(1, 1024, 512)
-
     mem = UltraMem(
         512,
         value_expansion = value_expansion,
@@ -28,10 +26,16 @@ def test_ultra_mem(
         score_activation = score_activation
     )
 
+    tokens = torch.randn(1, 1024, 512)
+
     trainable_sparse_mask = None
     if sparse_finetune:
         trainable_sparse_mask = torch.randint(0, 2, (core_heads, mem.num_virtual_mems,)).bool()
 
-    out, aux_loss = mem(x, trainable_sparse_mask = trainable_sparse_mask)
+    out, mem_indices, aux_loss = mem(tokens, trainable_sparse_mask = trainable_sparse_mask)
 
-    assert out.shape == x.shape and aux_loss.numel() == 1
+    assert (
+        out.shape == x.shape and
+        mem_indices.shape == (core_heads, *x.shape[:-1], 32),
+        aux_loss.numel() == 1
+    )
