@@ -39,6 +39,6 @@ def test_ultra_mem(
 
     assert (
         out.shape == tokens.shape and
-        mem_indices.shape == (core_heads, *tokens.shape[:-1], 32),
+        mem_indices.shape == (core_heads, *tokens.shape[:-1], 32) and
         aux_loss.numel() == 1
     )
